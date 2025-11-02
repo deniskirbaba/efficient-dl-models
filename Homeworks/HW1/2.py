@@ -12,29 +12,31 @@ def add_torch(x: torch.Tensor, const_val: float) -> torch.Tensor:
 
 
 @triton.jit
-def _add_triton(x_ptr, const_val, res_ptr, BLOCK_SIZE: tl.constexpr):
-    offsets = tl.arange(0, BLOCK_SIZE)
-    x = tl.load(x_ptr + offsets) + const_val
-    tl.store(res_ptr + offsets, x)
+def _add_triton(x_ptr, const_val, res_ptr, num_elements, BLOCK_SIZE: tl.constexpr):
+    pid = tl.program_id(0)
+    offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    mask = offsets < num_elements
+    x = tl.load(x_ptr + offsets, mask=mask) + const_val
+    tl.store(res_ptr + offsets, x, mask=mask)
 
 
-def add_triton(x: torch.Tensor, const_val: float) -> torch.Tensor:
+def add_triton(x: torch.Tensor, const_val: float, block_size: int = 64) -> torch.Tensor:
     assert x.is_contiguous()
     result: torch.tensor = torch.empty_like(x)
 
-    grid = lambda meta: (1,)
-    _add_triton[grid](x, const_val, result, BLOCK_SIZE=x.numel())
+    grid = lambda meta: (
+        triton.cdiv(
+            x.numel(),
+            meta["BLOCK_SIZE"],
+        ),
+    )
+    _add_triton[grid](x, const_val, result, x.numel(), BLOCK_SIZE=block_size)
 
     return result
 
 
 if __name__ == "__main__":
-    shapes = [
-        (64,),
-        (64, 64),
-        (256,),
-        (256, 256),
-    ]
+    shapes = [(64,), (64, 64), (256,), (256, 256), (1024,), (1024, 1024)]
     dtype = torch.bfloat16
     device = torch.device("cuda")
 
