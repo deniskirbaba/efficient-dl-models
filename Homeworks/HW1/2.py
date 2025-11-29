@@ -1,10 +1,11 @@
-from collections import defaultdict
+# from collections import defaultdict
 
-import pandas as pd
+# import pandas as pd
 import torch
 import triton
 import triton.language as tl
-from tqdm import tqdm
+
+# from tqdm import tqdm
 
 
 def add_torch(x: torch.Tensor, const_val: float) -> torch.Tensor:
@@ -35,22 +36,22 @@ def add_triton(x: torch.Tensor, const_val: float, block_size: int = 64) -> torch
     return result
 
 
-if __name__ == "__main__":
-    shapes = [(64,), (64, 64), (256,), (256, 256), (1024,), (1024, 1024)]
-    dtype = torch.bfloat16
-    device = torch.device("cuda")
+# if __name__ == "__main__":
+#     shapes = [(64,), (64, 64), (256,), (256, 256), (1024,), (1024, 1024)]
+#     dtype = torch.bfloat16
+#     device = torch.device("cuda")
 
-    # precision test
-    for shape in tqdm(shapes, desc="Precision tests", leave=False):
-        x = torch.randn(*shape, dtype=dtype, device=device)
-        assert torch.allclose(add_torch(x, 1.0), add_triton(x, 1.0))
+#     # precision test
+#     for shape in tqdm(shapes, desc="Precision tests", leave=False):
+#         x = torch.randn(*shape, dtype=dtype, device=device)
+#         assert torch.allclose(add_torch(x, 1.0), add_triton(x, 1.0))
 
-    # perf test
-    stats = defaultdict(dict)
-    for shape in tqdm(shapes, desc="Perf tests", leave=False):
-        x = torch.randn(*shape, dtype=dtype, device=device)
-        time_torch = triton.testing.do_bench(lambda: add_torch(x, 1.0), warmup=5, rep=25)
-        time_triton = triton.testing.do_bench(lambda: add_triton(x, 1.0), warmup=5, rep=25)
-        stats["torch"][shape] = time_torch
-        stats["triton"][shape] = time_triton
-    print(pd.DataFrame(stats).T.to_markdown())
+#     # perf test
+#     stats = defaultdict(dict)
+#     for shape in tqdm(shapes, desc="Perf tests", leave=False):
+#         x = torch.randn(*shape, dtype=dtype, device=device)
+#         time_torch = triton.testing.do_bench(lambda: add_torch(x, 1.0), warmup=5, rep=25)
+#         time_triton = triton.testing.do_bench(lambda: add_triton(x, 1.0), warmup=5, rep=25)
+#         stats["torch"][shape] = time_torch
+#         stats["triton"][shape] = time_triton
+#     print(pd.DataFrame(stats).T.to_markdown())
